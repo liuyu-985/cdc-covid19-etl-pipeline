@@ -69,12 +69,6 @@ Looker Studio dashboard
 
 ### 1) Environment variables (container)
 
-Copy, then fill values in a **local** `.env`:
-
-```bash
-cp .env.example .env
-```
-
 Required keys (used directly by code and/or docker‑compose):
 
 - `GCP_PROJECT` – your GCP project id (used by monitoring, jobs)
@@ -84,9 +78,7 @@ Required keys (used directly by code and/or docker‑compose):
 - `BATCH_SIZE` – rows per CDC request (e.g., 50000)
 - `TOTAL_ROWS` – expected total rows to fetch (used to compute chunk count)
 - `CDC_API_URL` – base CDC API endpoint 
-- `GOOGLE_APPLICATION_CREDENTIALS` – path *inside container* to your SA key (mount via volume)
-
-> The code reads `BATCH_SIZE`, `TOTAL_ROWS`, `RAW_BUCKET`, and `GCP_PROJECT` directly from env. 
+- `GOOGLE_APPLICATION_CREDENTIALS` – path *inside container* to your SA key (mount via volume) 
 
 ### 2) Airflow Variables (UI → Admin → Variables)
 
