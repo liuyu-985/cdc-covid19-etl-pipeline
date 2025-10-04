@@ -1,0 +1,107 @@
+services:
+
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$POSTGRES_USER\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airflow-init:
+    image: apache/airflow:2.5.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
+      GCP_PROJECT: "${GCP_PROJECT}"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/dags/scripts:ro
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./requirements.txt:/requirements.txt:ro
+      - ./keys/gcp_sa_key.json:/opt/airflow/keys/gcp_sa_key.json:ro
+    entrypoint:
+      - bash
+      - -c
+      - |
+        pip install --no-cache-dir -r /requirements.txt \
+        && airflow db init
+        # (Optional) If you want to auto-create an admin user, uncomment and set envs in .env:
+        # && airflow users create \
+        #      --username ${AIRFLOW_ADMIN_USERNAME} --password ${AIRFLOW_ADMIN_PASSWORD} \
+        #      --firstname Admin --lastname User \
+        #      --role Admin --email ${AIRFLOW_ADMIN_EMAIL}
+
+  airflow-webserver:
+    image: apache/airflow:2.5.1
+    restart: always
+    depends_on:
+      - postgres
+      - airflow-init
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/dags/scripts:ro
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./requirements.txt:/requirements.txt:ro
+      - ./keys/gcp_sa_key.json:/opt/airflow/keys/gcp_sa_key.json:ro
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
+      GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/keys/gcp_sa_key.json
+      GCP_PROJECT: "${GCP_PROJECT}"
+      STATSD_ON: "True"
+      STATSD_HOST: "statsd-exporter"
+      STATSD_PORT: "8125"
+      STATSD_PREFIX: "airflow"
+    entrypoint:
+      - bash
+      - -c
+      - |
+        pip install --no-cache-dir -r /requirements.txt \
+        && airflow webserver
+
+  airflow-scheduler:
+    image: apache/airflow:2.5.1
+    restart: always
+    depends_on:
+      - postgres
+      - airflow-init
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/dags/scripts:ro
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./requirements.txt:/requirements.txt:ro
+      - ./keys/gcp_sa_key.json:/opt/airflow/keys/gcp_sa_key.json:ro
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
+      GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/keys/gcp_sa_key.json
+      GCP_PROJECT: "${GCP_PROJECT}"
+      STATSD_ON: "True"
+      STATSD_HOST: "statsd-exporter"
+      STATSD_PORT: "8125"
+      STATSD_PREFIX: "airflow"
+    entrypoint:
+      - bash
+      - -c
+      - |
+        pip install --no-cache-dir -r /requirements.txt \
+        && airflow scheduler
+
+  statsd-exporter:
+    image: prom/statsd-exporter
+    ports:
+      - "9125:9125/udp"   
+      - "9102:9102"        

@@ -1,0 +1,20 @@
+# Secrets / credentials
+.env
+.env.*
+!.env.example
+keys/
+*service_account*.json
+credentials*.json
+*.key
+*.pem
+*.p12
+
+# Airflow local state
+logs/
+airflow.db
+airflow-webserver.pid
+
+# Python build/cache
+__pycache__/
+*.pyc
+.venv/
